@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 aiohttp = "*"
+beautifulsoup4 = "*"
 
 [dev-packages]
 
