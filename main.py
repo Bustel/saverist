@@ -2,8 +2,35 @@ import aiohttp
 import asyncio
 import bs4
 import os
+import json
+import re
+import pathlib
 from pprint import pprint
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
+
+base_url = "https://www.makerist.de"
+login_url = f"{base_url}/users/login_signup"
+login_url_post = f"{base_url}/sessions"
+ebook_url = f"{base_url}/my/meine-anleitungen"
+
+content_str = "Beschreibung"
+details_str = "Details"
+
+
+def mostly_safe_path(dirty: str):
+    clean =  re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", dirty) 
+    return clean
+
+async def download_file(session: aiohttp.ClientSession, url: str, dest: str):
+    async with session.get(url) as rsp:
+        with open(dest, "wb") as f:
+            while chunk:= await rsp.content.read(1024):
+                f.write(chunk)
+
+@dataclass
+class File:
+    name: str
+    link: str
 
 @dataclass
 class Ebook:
@@ -11,15 +38,77 @@ class Ebook:
     site_link: str
     product_image_url: str
     creator: str
+    gallery_links: list[File] = field(default_factory=list)
+    pdfs: list[File] = field(default_factory=list)
+    zips: list[File] = field(default_factory=list)
+    content_description: str | None = None
+    product_details: str | None = None
+
+    async def fetch_info(self, session: aiohttp.ClientSession):
+        async with session.get(self.site_link) as rsp:
+            html = await rsp.text()
+            soup = bs4.BeautifulSoup(html, "html.parser")
+
+            gallery = soup.find("div", class_="product-page__gallery-wrapper")
+            if gallery is not None:
+                for img in gallery.find_all("img"):
+                    link = img.attrs["src"]
+                    name = link.split("/")[-1]
+                    self.gallery_links.append(File(name=name,link=link))
+
+            for button in soup.find_all(id="download-pattern-zip-button"):
+                name = button.attrs["download"]
+                link = base_url + button.attrs["href"]
+                self.zips.append(File(name=name, link=link))
+
+            for div in soup.find_all("div", class_="pdf-download-link"):
+                for a in div.find_all("a"):
+                    link = base_url + a.attrs["href"]
+                    name = a.attrs["href"].split("/")[-2] + ".pdf"
+                    self.pdfs.append(File(name=name, link=link))
+
+            content = soup.find_all("div", class_="product-page__accordion-content")
+            for part in content:
+                if part.previous_sibling.get_text() == content_str:
+                    self.content_description = part.get_text()                    
+
+                if part.previous_sibling.get_text() == details_str:
+                    self.product_details = part.get_text()                    
+
+    def to_json(self):
+        return json.dumps(asdict(self), indent=4)
+
+    async def archive(self, session: aiohttp.ClientSession, dest: str):
+        dest_path = pathlib.Path(dest)
+        folder = dest_path / mostly_safe_path(self.title) 
+        folder.mkdir()
+
+        with open(folder / "metadata.json", "w") as f:
+            f.write(self.to_json())
+
+        tasks = []
+
+        images_dest = folder / "images"
+        images_dest.mkdir()
+        for img in self.gallery_links:
+            tasks.append(download_file(session, img.link, images_dest / img.name))
+
+        pdf_dest = folder / "pdfs"
+        pdf_dest.mkdir()
+        for pdf in self.pdfs:
+            tasks.append(download_file(session, pdf.link, pdf_dest / pdf.name))
+
+        zip_dest = folder / "zips"
+        zip_dest.mkdir()
+        for z in self.zips:
+            tasks.append(download_file(session, z.link, zip_dest / z.name))
+
+        await asyncio.gather(*tasks)
+
 
 # /users/login_signup
 # head -> meta name:csrf-token
 # _makerist_session
-
-login_url = "https://www.makerist.de/users/login_signup"
-login_url_post = "https://www.makerist.de/sessions"
-ebook_url = "https://www.makerist.de/my/meine-anleitungen"
-
 async def login(s: aiohttp.ClientSession, user: str, password: str):
     async with s.get(login_url) as rsp:
         html = await rsp.text()
@@ -27,8 +116,8 @@ async def login(s: aiohttp.ClientSession, user: str, password: str):
         csrf_tag = soup.head.find_all("meta", attrs={"name":"csrf-token"})[0]
         csrf_token = csrf_tag.attrs["content"]
 
-    for cookie in s.cookie_jar:
-        pprint(cookie)
+    # for cookie in s.cookie_jar:
+    #     pprint(cookie)
 
     login_data = {
         "authenticity_token": csrf_token,
@@ -37,13 +126,15 @@ async def login(s: aiohttp.ClientSession, user: str, password: str):
         "session[remember_me]": "0",
         "commit": "Einloggen",
     }
-    pprint(login_data)
+    # pprint(login_data)
 
     async with s.post(login_url_post, data=login_data) as rsp:
         html = await rsp.text()
         soup = bs4.BeautifulSoup(html, "html.parser")
+        # print(soup.prettify())
 
     # TODO Verify login?
+
 
 async def iter_ebooks(s: aiohttp.ClientSession):
     ebooks = []
@@ -76,18 +167,21 @@ async def iter_ebooks(s: aiohttp.ClientSession):
                 params["page"] += 1
 
 
-
-
-
-
 async def main():
     async with aiohttp.ClientSession() as s:
         user =  os.getenv("MAKERIST_USERNAME")
         pw = os.getenv("MAKERIST_PASSWORD")
         await login(s, user, pw)
         
+        archive = pathlib.Path("archive")
+        archive.mkdir(exist_ok=True)
+        count = 1
         async for ebook in iter_ebooks(s):
-            print(ebook.title)
+            await ebook.fetch_info(s)
+            await ebook.archive(s, archive)
+
+            print(f"[{count}] -- {ebook.title} archiviert.")
+            count += 1
         
 if __name__ == '__main__':
     asyncio.run(main())
