@@ -176,12 +176,22 @@ async def main():
         archive = pathlib.Path("archive")
         archive.mkdir(exist_ok=True)
         count = 1
+        archived = 0
+        skipped = 0
         async for ebook in iter_ebooks(s):
             await ebook.fetch_info(s)
-            await ebook.archive(s, archive)
+            try: 
+                await ebook.archive(s, archive)
+                print(f"[{count}] -- {ebook.title} archiviert.")
+                archived += 1
+            except FileExistsError:
+                print(f"[{count}] -- Überspringe {ebook.title}. Existiert bereits.")
+                skipped += 1
 
-            print(f"[{count}] -- {ebook.title} archiviert.")
             count += 1
+
+        print("===== ARCHIVIERUNG ABGESCHLOSSEN ====")
+        print(f"{archived} Ebooks archiviert. {skipped} übersprungen.")
         
 if __name__ == '__main__':
     asyncio.run(main())
