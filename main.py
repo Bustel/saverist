@@ -5,6 +5,7 @@ import os
 import json
 import re
 import pathlib
+import getpass
 from pprint import pprint
 from dataclasses import dataclass, field, asdict
 
@@ -147,6 +148,10 @@ async def iter_ebooks(s: aiohttp.ClientSession):
 
             product_list = soup.find(id="my-products-list")
 
+            if product_list is None:
+                print("Keine E-Books gefunden. Ist der Login korrekt?")
+                return
+
             for product in product_list.find_all("div", class_="product"):
                 title = product.find("div", class_="product__title").get_text()
                 link = product.find("div",class_="product__title").find("a").attrs["href"]
@@ -171,6 +176,13 @@ async def main():
     async with aiohttp.ClientSession() as s:
         user =  os.getenv("MAKERIST_USERNAME")
         pw = os.getenv("MAKERIST_PASSWORD")
+
+        if user is None:
+            user = input("Benutzername/E-Mail:").strip()
+
+        if pw is None:
+            pw = getpass.getpass("Passwort:")
+
         await login(s, user, pw)
         
         archive = pathlib.Path("archive")
