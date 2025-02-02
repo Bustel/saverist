@@ -1,0 +1,39 @@
+<html>
+    <head>
+<style>
+div.scroll-container {
+  background-color: #333;
+  overflow: auto;
+  white-space: nowrap;
+  padding: 10px;
+  height: 500px;
+}
+
+div.scroll-container img {
+  padding: 10px;
+  height: 480px;
+}
+</style>
+    </head>
+    <body>
+        <h1> {{ metadata['title'] }}</h1>
+        {% if images %}
+        <div class='scroll-container'>
+            {% for image in images %}
+            <img src={{ image }}>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <p> {{ metadata['creator'] }} </p> 
+        <h2> Beschreibung </h2>
+        <p> {{ metadata['content_description'] }}</p>
+        <h2> Anleitung </h2>
+        {% for title, link in pdfs %}
+        <p><a href="{{ link }}">{{title}}</a></p>
+        {% endfor %}
+        <h2> Schnittmuster </h2>
+        {% for title, link in zips %}
+        <p><a href="{{ link }}">{{title}}</a></p>
+        {% endfor %}
+    </body>
+</html>

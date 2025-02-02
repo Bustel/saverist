@@ -1,0 +1,10 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <h1>Schnittmuster</h1>
+        {% for p in pattern %} 
+        <p><a href="{{ url_for('pattern', pattern=p) }}">{{p}}</a></p>
+        {% endfor %}
+    </body>
+</html>
