@@ -17,6 +17,9 @@ ebook_url = f"{base_url}/my/meine-anleitungen"
 content_str = "Beschreibung"
 details_str = "Details"
 
+PDF_POLLING_INTERVAL = 0.5
+PDF_POLLING_TIMEOUT = 30
+
 
 def mostly_safe_path(dirty: str):
     clean =  re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", dirty) 
@@ -61,12 +64,21 @@ class Ebook:
                 name = button.attrs["download"]
                 link = base_url + button.attrs["href"]
                 self.zips.append(File(name=name, link=link))
+            
 
             for div in soup.find_all("div", class_="pdf-download-link"):
                 for a in div.find_all("a"):
-                    link = base_url + a.attrs["href"]
-                    name = a.attrs["href"].split("/")[-2] + ".pdf"
-                    self.pdfs.append(File(name=name, link=link))
+                    pprint(a.attrs)
+                    # PDF mit generiertem Wasserzeichen
+                    if "data-status-url" in a.attrs:
+                        prepare_link = base_url + a.attrs["href"]
+                        status_url = base_url + a.attrs["data-status-url"]
+                        await self.prepare_pdf(session, prepare_link, status_url)
+                    else:
+                        # PDF Download direkt verfügbar 
+                        name = a.attrs["href"].split("/")[-2] + ".pdf"
+                        link = base_url + a.attrs["href"]
+                        self.pdfs.append(File(name=name, link=link))
 
             content = soup.find_all("div", class_="product-page__accordion-content")
             for part in content:
@@ -75,6 +87,35 @@ class Ebook:
 
                 if part.previous_sibling.get_text() == details_str:
                     self.product_details = part.get_text()                    
+    
+    async def prepare_pdf(self, session: aiohttp.ClientSession,
+                          prepare_link:str,  status_url: str):
+
+        print("Generiere PDF mit Wasserzeichen...")
+        async with session.get(prepare_link) as rsp:
+            data = await rsp.json()
+            if data["status"] != "OK":
+                print("!!! PDF Generierung fehlgeschlagen !!!")
+                return
+
+        count = 0
+        while (count * PDF_POLLING_INTERVAL) < PDF_POLLING_TIMEOUT:
+            async with session.get(status_url) as rsp:
+                data = await rsp.json()
+                if data["status"] == "OK" and "url" in data:
+                    link = base_url + data["url"] 
+                    name = data["url"].split("/")[-2] + ".pdf"
+                    self.pdfs.append(File(name=name, link=link))
+                    return
+                await asyncio.sleep(PDF_POLLING_INTERVAL)
+                count += 1
+
+        # TODO Das sollten eigentlich Exceptions sein...
+        print("!!! Timeout !!! PDF Generierung fehlgeschlagen !!!")
+
+
+        
+
 
     def to_json(self):
         return json.dumps(asdict(self), indent=4)
