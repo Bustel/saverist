@@ -1,12 +1,15 @@
 import os
 import pathlib
 import json
+import pysolr
 
-from flask import Flask, url_for, render_template, send_from_directory
+from flask import Flask, url_for, render_template, send_from_directory, request
 
+SOLR_HOST = "http://localhost:8983/solr/saverist/"
 archive_folder = "archive/"
 
 app = Flask(__name__)
+solr = pysolr.Solr(SOLR_HOST)
 
 @app.route("/image/<pattern>/<fname>")
 def image(pattern, fname):
@@ -60,7 +63,15 @@ def get_all_ebooks():
 @app.route("/")
 def index():
     pattern = get_all_ebooks()
-    return render_template("index.html", pattern=pattern)  
+    query = request.args.get("q")
+    start = request.args.get("start", "0")
+    rows = request.args.get("rows", "25") # TODO Fix this
+    if query is None or query == "":
+        query = "*:*"
+
+    res = solr.search(q=query, start=start, rows=rows)
+
+    return render_template("index.html", results=res)  
 
 if __name__ == '__main__':
     app.run()

@@ -7,6 +7,7 @@ name = "pypi"
 aiohttp = "*"
 beautifulsoup4 = "*"
 flask = "*"
+pysolr = "*"
 
 [dev-packages]
 
