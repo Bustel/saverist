@@ -6,6 +6,7 @@ import json
 import re
 import pathlib
 import getpass
+import argparse
 from pprint import pprint
 from dataclasses import dataclass, field, asdict
 
@@ -158,9 +159,6 @@ async def login(s: aiohttp.ClientSession, user: str, password: str):
         csrf_tag = soup.head.find_all("meta", attrs={"name":"csrf-token"})[0]
         csrf_token = csrf_tag.attrs["content"]
 
-    # for cookie in s.cookie_jar:
-    #     pprint(cookie)
-
     login_data = {
         "authenticity_token": csrf_token,
         "session[email]": user,
@@ -168,12 +166,10 @@ async def login(s: aiohttp.ClientSession, user: str, password: str):
         "session[remember_me]": "0",
         "commit": "Einloggen",
     }
-    # pprint(login_data)
 
     async with s.post(login_url_post, data=login_data) as rsp:
         html = await rsp.text()
         soup = bs4.BeautifulSoup(html, "html.parser")
-        # print(soup.prettify())
 
     # TODO Verify login?
 
@@ -213,7 +209,7 @@ async def iter_ebooks(s: aiohttp.ClientSession):
                 params["page"] += 1
 
 
-async def main():
+async def main(args):
     async with aiohttp.ClientSession() as s:
         user =  os.getenv("MAKERIST_USERNAME")
         pw = os.getenv("MAKERIST_PASSWORD")
@@ -226,7 +222,7 @@ async def main():
 
         await login(s, user, pw)
         
-        archive = pathlib.Path("archive")
+        archive = pathlib.Path(args.archive_destination)
         archive.mkdir(exist_ok=True)
         count = 1
         archived = 0
@@ -247,5 +243,12 @@ async def main():
         print(f"{archived} Ebooks archiviert. {skipped} übersprungen.")
         
 if __name__ == '__main__':
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.description = "Archiviert alle E-Books / Schnittmuster eines" \
+                         "makerist.de Accounts, inkl. Anleitungen und Bildern." 
+    parser.add_argument("--archive_destination", default="archive",
+                        help="Speicherort für die Ebooks (standardmäßig:" \
+                             "\"archive\")")
+    args = parser.parse_args()
+    asyncio.run(main(args))
 
