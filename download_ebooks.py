@@ -9,6 +9,7 @@ import getpass
 import argparse
 from pprint import pprint
 from dataclasses import dataclass, field, asdict
+from typing import List, Optional
 
 base_url = "https://www.makerist.de"
 login_url = f"{base_url}/users/login_signup"
@@ -43,11 +44,11 @@ class Ebook:
     site_link: str
     product_image_url: str
     creator: str
-    gallery_links: list[File] = field(default_factory=list)
-    pdfs: list[File] = field(default_factory=list)
-    zips: list[File] = field(default_factory=list)
-    content_description: str | None = None
-    product_details: str | None = None
+    gallery_links: List[File] = field(default_factory=list)
+    pdfs: List[File] = field(default_factory=list)
+    zips: List[File] = field(default_factory=list)
+    content_description: Optional[str] = None
+    product_details: Optional[str] = None
 
     async def fetch_info(self, session: aiohttp.ClientSession):
         async with session.get(self.site_link) as rsp:
