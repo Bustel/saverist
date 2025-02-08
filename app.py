@@ -64,14 +64,25 @@ def get_all_ebooks():
 def index():
     pattern = get_all_ebooks()
     query = request.args.get("q")
-    start = request.args.get("start", "0")
-    rows = request.args.get("rows", "25") # TODO Fix this
+    try:
+        rows = int(request.args.get("rows"))
+        page = int(request.args.get("page"))
+        start = (page - 1) * rows
+    except (ValueError, TypeError):
+        rows = 50
+        page = 1
+        start = 0
+
+
     if query is None or query == "":
         query = "*:*"
-
     res = solr.search(q=query, start=start, rows=rows)
-
-    return render_template("index.html", results=res)  
+    return render_template("index.html",
+                           results=res,
+                           query=query if query !="*:*" else "",
+                           page=page,
+                           rows=rows
+                          )
 
 if __name__ == '__main__':
     app.run()
