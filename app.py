@@ -64,6 +64,7 @@ def get_all_ebooks():
 def index():
     pattern = get_all_ebooks()
     query = request.args.get("q")
+    fq = request.args.get("fq")
     try:
         rows = int(request.args.get("rows"))
         page = int(request.args.get("page"))
@@ -77,6 +78,9 @@ def index():
     if query is None or query == "":
         query = "*:*"
 
+    if fq == "":
+        fq = None
+
     try:
         params = {
             "start": start,
@@ -84,9 +88,15 @@ def index():
             "facet": True,
             "facet.field": "_creator_",
         }
+        if fq:
+            params["fq"] = fq
+
         res = solr.search(q=query,**params)
         hits = res.hits
-        print(res.facets)
+        creator_facets = res.facets["facet_fields"]["_creator_"]
+        creators = filter(lambda c: c["count"] > 0, 
+                   map(lambda t: { "name": t[0], "count": t[1] },
+                   zip(creator_facets[0::2], creator_facets[1::2])))
     except pysolr.SolrError as e:
         print(e)
         res = []
@@ -98,6 +108,7 @@ def index():
                            query=query if query !="*:*" else "",
                            page=page,
                            rows=rows,
+                           creators=creators,
                           )
 
 if __name__ == '__main__':

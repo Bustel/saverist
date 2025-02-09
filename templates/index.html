@@ -31,19 +31,23 @@ div.pattern-container {
         <header>
             <h1>Schnittmuster</h1>
         </header>
+
         <div class="nav">
-            <ul>
-            <li>foo</li>
-            <li>foo</li>
-            <li>foo</li>
-            </ul>
-        </div>
-        <div class="main">
             <form action="/" method="GET">
                 <input name="q" value="{{ query }}"/>
                 <input type="submit" value="Suche"/>
+                <select name="fq">
+                    <option value=""></option>
+                    {% for c in creators %}
+                    <option value="_creator_:{{ c['name'] }}">{{ c['name'] }} ({{ c['count'] }})</option>
+                    {% endfor %}
+                </select>
             </form>
+
             <div>{{ hits }} Ergebnisse gefunden.</div>
+        </div>
+        <div class="main">
+
             <div class="pattern-container">
             {% for r in results %} 
                 <div class=pattern>
