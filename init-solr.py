@@ -41,11 +41,23 @@ payload = {
         "indexed": "false",
         "multiValued": "false",
     },
+    {
+        "name": "_creator_",
+        "type": "string",
+        "stored": "true",
+        "indexed": "false",
+        "multiValued": "false",
+        "docValues": "true"
+    },
     ],
     "add-copy-field": [
         {
         "source": "*",
         "dest": "_text_"
+        },
+        {
+        "source": "creator",
+        "dest": "_creator_",
         }
     ]
 }

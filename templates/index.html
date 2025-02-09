@@ -1,40 +1,69 @@
 <html>
     <head>
 <style>
-div.pattern-container {
+body {
     display: grid;
-    gap: 50px 100px;
-    grid-template-columns: 20% 20% 20% 20%
+    gap: 0.5em;
+}
+
+@media (min-width: 45em){
+body {
+        grid-template-columns: 1fr 3fr;
+        grid-template-rows: auto
+    }
+}
+
+header {
+    grid-column: 1 / -1;
+}
+
+div.pattern-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+}
+.pattern {
+    width: 20em;
 }
 </style>
     </head>
     <body>
-        <h1>Schnittmuster</h1>
-        <form action="/" method="GET">
-            <input name="q" value="{{ query }}"/>
-            <input type="submit" value="Suche"/>
-        </form>
-        <div>{{ results.hits }} Ergebnisse gefunden.</div>
-        <div class="pattern-container">
-        {% for r in results %} 
-            <div>
-            <a href="{{ url_for('pattern', pattern=r['path']) }}">
-            <img src="{{ url_for('image', pattern=r['path'], fname=r['thumbnail']) }}">
-            <p>{{r['title']}}</p>
-            <p>{{r['creator']}}</p>
-            </a>
+        <header>
+            <h1>Schnittmuster</h1>
+        </header>
+        <div class="nav">
+            <ul>
+            <li>foo</li>
+            <li>foo</li>
+            <li>foo</li>
+            </ul>
+        </div>
+        <div class="main">
+            <form action="/" method="GET">
+                <input name="q" value="{{ query }}"/>
+                <input type="submit" value="Suche"/>
+            </form>
+            <div>{{ hits }} Ergebnisse gefunden.</div>
+            <div class="pattern-container">
+            {% for r in results %} 
+                <div class=pattern>
+                <a href="{{ url_for('pattern', pattern=r['path']) }}">
+                <img src="{{ url_for('image', pattern=r['path'], fname=r['thumbnail']) }}">
+                <p>{{r['title']}}</p>
+                <p>{{r['creator']}}</p>
+                </a>
+                </div>
+            {% endfor %}
             </div>
-        {% endfor %}
+            <div class="pagination">
+                    {% if page > 1 %}
+                    <a href={{ url_for("index", query=query, page=page-1, rows=rows) }}><</a>
+                    {% endif %}
+                    <span>Seite {{ page }}</span>
+                    {% if hits > page * rows %}
+                    <a href={{ url_for("index", query=query, page=page+1, rows=rows) }}>></a>
+                    {% endif %}
+            </div>
         </div>
-        <div class="pagination">
-        {% if page > 1 %}
-        <a href={{ url_for("index", query=query, page=page-1, rows=rows) }}><</a>
-        {% endif %}
-        <span>Seite {{ page }}</span>
-        {% if results.hits > page * rows %}
-        <a href={{ url_for("index", query=query, page=page+1, rows=rows) }}>></a>
-        {% endif %}
-        </div>
-
     </body>
 </html>

@@ -76,12 +76,28 @@ def index():
 
     if query is None or query == "":
         query = "*:*"
-    res = solr.search(q=query, start=start, rows=rows)
+
+    try:
+        params = {
+            "start": start,
+            "rows": rows,
+            "facet": True,
+            "facet.field": "_creator_",
+        }
+        res = solr.search(q=query,**params)
+        hits = res.hits
+        print(res.facets)
+    except pysolr.SolrError as e:
+        print(e)
+        res = []
+        hits = 0
+
     return render_template("index.html",
                            results=res,
+                           hits=hits,
                            query=query if query !="*:*" else "",
                            page=page,
-                           rows=rows
+                           rows=rows,
                           )
 
 if __name__ == '__main__':
