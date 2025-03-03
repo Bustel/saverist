@@ -124,7 +124,7 @@ class Ebook:
 
     async def archive(self, session: aiohttp.ClientSession, dest: str):
         dest_path = pathlib.Path(dest)
-        folder = dest_path / mostly_safe_path(self.title) 
+        folder = dest_path / mostly_safe_path(self.title.strip()) 
         folder.mkdir()
 
         with open(folder / "metadata.json", "w") as f:
